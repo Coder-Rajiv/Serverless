@@ -1,0 +1,68 @@
+service: bloggerKing
+frameworkVersion: '3'
+
+provider:
+    name: aws
+    runtime: python3.8
+    profile: serverlessUser
+    region: eu-west-1
+    environment:
+        tableName: ${self:custom.tableName}
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource: '*'
+    apiKeys:
+        - secret
+
+custom:
+    tableName: blog_data_table
+    dynamodb:
+        stages:
+            - dev
+        start:
+            port: 8000
+            inMemory: true
+            migrate: true
+        migration:
+            dir: offline/migrations
+
+functions:
+  hello:
+    handler: functions.handler.hello
+    events:
+      - httpApi:
+          path: /todo/api/v1/create
+          method: post
+          private: true
+      - httpApi:
+          path: /todo/api/v1/fetch/{email}
+          method: get
+          private: true
+      - httpApi:
+          path: /todo/api/v1/update/{email}
+          method: put
+          private: true
+      - httpApi:
+          path: /todo/api/v1/delete/{email}
+          method: delete
+          private: true
+resources:
+    Resources:
+        MyDynamoDbTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:custom.tableName}
+                AttributeDefinitions:
+                    - AttributeName: Email
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: Email
+                      KeyType: HASH
+                ProvisionedThroughput:
+                      ReadCapacityUnits: 1
+                      WriteCapacityUnits: 1
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
